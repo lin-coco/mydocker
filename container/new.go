@@ -7,19 +7,23 @@ import (
 )
 
 /*
-NewParentProcess 生成父进程启动命令，也即是容器 /proc/self/exe init [command]
+NewParentProcessCmd 生成父进程启动命令，也即是容器 /proc/self/exe init [command]
 */
-func NewParentProcess(tty bool, command string) *exec.Cmd {
-	args := []string{"init", command}
-	cmd := exec.Command("/proc/self/exe", args...) // docker init ...
+func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	init := exec.Command("/proc/self/exe", "init") // docker init
 	// 容器隔离
-	cmd.SysProcAttr = &syscall.SysProcAttr{
+	init.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNET | syscall.CLONE_NEWUSER,
 	}
 	if tty {
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		init.Stdin = os.Stdin
+		init.Stdout = os.Stdout
+		init.Stderr = os.Stderr
 	}
-	return cmd
+	init.ExtraFiles = []*os.File{readPipe}
+	return init, writePipe, nil
 }
