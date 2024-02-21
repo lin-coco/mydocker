@@ -17,13 +17,14 @@ func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
 	init := exec.Command("/proc/self/exe", "init") // docker init
 	// 容器隔离
 	init.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNET | syscall.CLONE_NEWUSER,
+		Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNET,
 	}
-	if tty {
+	if tty { // 前台运行
 		init.Stdin = os.Stdin
 		init.Stdout = os.Stdout
 		init.Stderr = os.Stderr
 	}
 	init.ExtraFiles = []*os.File{readPipe}
+	init.Dir = "/root/busybox" // 指定运行目录
 	return init, writePipe, nil
 }

@@ -11,6 +11,7 @@ import (
 )
 
 func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string) error {
+	// parent 父进程启动命令 /proc/self/exe
 	parent, writePipe, err := container.NewParentProcessCmd(it)
 	if err != nil {
 		log.Error("new parent process cmd error:", err)
@@ -28,7 +29,7 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string) err
 		return err
 	}
 	defer clearCgroup()
-	// 发送用户命令
+	// 发送用户命令 如 /bin/bash
 	if err = sendUserCommand(comArray, writePipe); err != nil {
 		log.Error("send user command error:", err)
 		return err
