@@ -74,7 +74,22 @@ var (
 			var err error
 			log.Infof("init come on")
 			if err := container.RunContainerInitProcess(); err != nil {
-				log.Error("docker init err:", err)
+				log.Errorf("docker init err: %v", err)
+			}
+			return err
+		},
+	}
+	commitCommand = cli.Command{
+		Name:  "commit",
+		Usage: "commit a container into image",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			if len(ctx.Args()) < 1 {
+				log.Errorf("Missing container name")
+			}
+			imageName := ctx.Args().Get(0)
+			if err = commitContainer(imageName); err != nil {
+				log.Errorf("commitContainer err: %v", err)
 			}
 			return err
 		},
