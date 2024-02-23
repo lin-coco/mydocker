@@ -19,6 +19,10 @@ var (
 				Name:  "it",
 				Usage: "enable tty", // tty指终端
 			},
+			cli.BoolFlag{
+				Name:  "d",
+				Usage: "detach container", // 容器脱离
+			},
 			cli.StringFlag{
 				Name:  "v",
 				Usage: "volume", // 数据卷
@@ -52,6 +56,12 @@ var (
 				comArray = append(comArray, arg)
 			}
 			it := ctx.Bool("it")
+			d := ctx.Bool("d")
+			if it && d {
+				err = errors.New("it and d parameter can not both provided")
+				log.Errorf("docker run err: %v", err)
+				return err
+			}
 			volume := ctx.String("v")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
@@ -89,7 +99,7 @@ var (
 			}
 			imageName := ctx.Args().Get(0)
 			if err = commitContainer(imageName); err != nil {
-				log.Errorf("commitContainer err: %v", err)
+				log.Errorf("docker commit err: %v", err)
 			}
 			return err
 		},

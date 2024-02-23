@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+
 	"mydocker/app"
 	"mydocker/cgroups"
 	"mydocker/container"
@@ -38,20 +40,23 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string, vol
 	if err = sendUserCommand(comArray, writePipe); err != nil {
 		return fmt.Errorf("sendUserCommand err: %v", err)
 	}
-	if err = parent.Wait(); err != nil {
-		return fmt.Errorf("parent.Wait() err:%v", err)
+	if it { // 交互式创建：父进程等待子进程结束
+		if err = parent.Wait(); err != nil {
+			return fmt.Errorf("parent.Wait() err:%v", err)
+		}
 	}
 	return nil
 }
 
 func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPid int) (error, func()) {
 	cgroupPath, err := cgroups.Create(parentPid)
-	clearCgroup := func() {
-		_ = cgroups.Clear(cgroupPath)
-	}
-	defer clearCgroup()
 	if err != nil {
 		return err, nil
+	}
+	clearCgroup := func() {
+		if err := cgroups.Clear(cgroupPath); err != nil {
+			log.Errorf("cgroups.Clear err: %v", err)
+		}
 	}
 	if err = cgroups.Set(cgroupPath, resourceConfig); err != nil {
 		return err, nil
