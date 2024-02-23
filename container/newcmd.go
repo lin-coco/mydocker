@@ -10,7 +10,7 @@ import (
 /*
 NewParentProcessCmd 生成父进程启动命令，也即是容器 /proc/self/exe init [command]
 */
-func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
+func NewParentProcessCmd(it bool, volume string) (*exec.Cmd, *os.File, error) {
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
 		return nil, nil, fmt.Errorf("os.Pipe err: %v", err)
@@ -20,7 +20,7 @@ func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
 	init.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUTS | syscall.CLONE_NEWNET,
 	}
-	if tty { // 前台运行
+	if it { // 前台运行
 		init.Stdin = os.Stdin
 		init.Stdout = os.Stdout
 		init.Stderr = os.Stderr

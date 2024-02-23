@@ -20,6 +20,10 @@ var (
 				Usage: "enable tty", // tty指终端
 			},
 			cli.StringFlag{
+				Name:  "v",
+				Usage: "volume", // 数据卷
+			},
+			cli.StringFlag{
 				Name:  "m",
 				Usage: "memory limit",
 			},
@@ -43,17 +47,18 @@ var (
 			if len(ctx.Args()) < 1 {
 				return errors.New("missing container command")
 			}
-			var comArray []string
+			var comArray []string // 用户命令
 			for _, arg := range ctx.Args() {
 				comArray = append(comArray, arg)
 			}
 			it := ctx.Bool("it")
+			volume := ctx.String("v")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, comArray); err != nil {
+			if err = Run(it, resourceConfig, comArray, volume); err != nil {
 				log.Error("docker run err:", err)
 			}
 			return err

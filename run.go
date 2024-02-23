@@ -10,14 +10,14 @@ import (
 	"mydocker/container"
 )
 
-func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string) error {
+func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string, volume string) error {
 	// parent 父进程启动命令 /proc/self/exe
-	parent, writePipe, err := container.NewParentProcessCmd(it)
+	parent, writePipe, err := container.NewParentProcessCmd(it, volume)
 	if err != nil {
 		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
 	// 创建容器的运行空间(文件系统)
-	err, clearRunningSpace := container.NewRunningSpace(app.UnionPath, app.MntPath, app.BusyboxTar)
+	err, clearRunningSpace := container.NewRunningSpace(app.UnionPath, app.MntPath, app.BusyboxTar, volume)
 	if err != nil {
 		return fmt.Errorf("NewRunningSpace err: %v", err)
 	}
