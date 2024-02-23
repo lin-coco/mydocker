@@ -1,11 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
+	"mydocker/app"
 	"mydocker/cgroups"
 	"mydocker/container"
 )
@@ -14,28 +14,32 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, comArray []string) err
 	// parent 父进程启动命令 /proc/self/exe
 	parent, writePipe, err := container.NewParentProcessCmd(it)
 	if err != nil {
-		log.Error("new parent process cmd error:", err)
-		return err
+		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
+	// 创建容器的运行空间(文件系统)
+	err, clearRunningSpace := container.NewRunningSpace(app.UnionPath, app.MntPath, app.BusyboxTar)
+	if err != nil {
+		return fmt.Errorf("NewRunningSpace err: %v", err)
+	}
+	defer clearRunningSpace()
+	// 指定运行目录
+	parent.Dir = app.MntPath
 	// docker init 成为容器运行的第一个进程
 	if err = parent.Start(); err != nil {
-		log.Error("parent start error:", err)
-		return err
+		return fmt.Errorf("parent.Start() err: %v", err)
 	}
 	// 设置资源限制
 	err, clearCgroup := enableParentResourceConfig(resourceConfig, parent.Process.Pid)
 	if err != nil {
-		log.Error("enable parent resource config error:", err)
-		return err
+		return fmt.Errorf("enableParentResourceConfig err: %v", err)
 	}
 	defer clearCgroup()
 	// 发送用户命令 如 /bin/bash
 	if err = sendUserCommand(comArray, writePipe); err != nil {
-		log.Error("send user command error:", err)
-		return err
+		return fmt.Errorf("sendUserCommand err: %v", err)
 	}
 	if err = parent.Wait(); err != nil {
-		log.Info("container finished:", err)
+		return fmt.Errorf("parent.Wait() err:%v", err)
 	}
 	return nil
 }
@@ -59,8 +63,8 @@ func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPi
 }
 
 func sendUserCommand(comArray []string, writePipe *os.File) error {
-	userCommamd := strings.Join(comArray, " ")
-	if _, err := writePipe.WriteString(userCommamd); err != nil {
+	userCommand := strings.Join(comArray, " ")
+	if _, err := writePipe.WriteString(userCommand); err != nil {
 		return err
 	}
 	_ = writePipe.Close()

@@ -72,15 +72,22 @@ pivotRoot 切换根文件系统
 func pivotRoot(root string) error {
 	var err error
 	/*
+		systemd 加入linux之后, mount namespace 就变成 shared by default, 所以你必须显示
+		声明你要这个新的mount namespace独立。
+	*/
+	if err = syscall.Mount("", "/", "", syscall.MS_PRIVATE|syscall.MS_REC, ""); err != nil {
+		return fmt.Errorf("syscall.Mount err: %v", err)
+	}
+	/*
 		为了使当前root的老root和新root不在同一个文件系统下，我们把root重新mount了一次，
 		bind mount是把相同的内容换了一个挂载点的挂载方法。
 	*/
-	if err = syscall.Mount(root, root, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
-		return fmt.Errorf("syscall.Mount root err: %v", err)
-	}
+	//if err = syscall.Mount(root, root, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+	//	return fmt.Errorf("syscall.Mount root err: %v", err)
+	//}
 	// 创建rootfs/.pivot_root存储old_root
 	pivotDir := path.Join(root, ".pivot_root")
-	if err = os.Mkdir(pivotDir, 0777); err != nil {
+	if err = os.Mkdir(pivotDir, 0777); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("os.Mkdir err: %v", err)
 	}
 	if err = syscall.PivotRoot(root, pivotDir); err != nil {

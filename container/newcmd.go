@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
@@ -12,7 +13,7 @@ NewParentProcessCmd 生成父进程启动命令，也即是容器 /proc/self/exe
 func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("os.Pipe err: %v", err)
 	}
 	init := exec.Command("/proc/self/exe", "init") // docker init
 	// 容器隔离
@@ -25,6 +26,5 @@ func NewParentProcessCmd(tty bool) (*exec.Cmd, *os.File, error) {
 		init.Stderr = os.Stderr
 	}
 	init.ExtraFiles = []*os.File{readPipe}
-	init.Dir = "/root/busybox" // 指定运行目录
 	return init, writePipe, nil
 }
