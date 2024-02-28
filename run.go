@@ -19,8 +19,12 @@ import (
 )
 
 func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name string, comArray []string) error {
+	id := randStringBytes(10)
+	if name == "" {
+		name = id
+	}
 	// parent 父进程启动命令 /proc/self/exe
-	parent, writePipe, err := container.NewParentProcessCmd(it)
+	parent, writePipe, err := container.NewParentProcessCmd(it, name)
 	if err != nil {
 		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
@@ -41,7 +45,7 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name st
 		return fmt.Errorf("enableParentResourceConfig err: %v", err)
 	}
 	// 记录容器信息
-	err, clearRecord := recordContainerInfo(parent.Process.Pid, name, comArray)
+	err, clearRecord := recordContainerInfo(id, name, parent.Process.Pid, comArray)
 	if err != nil {
 		return fmt.Errorf("recordContainerInfo err: %v", err)
 	}
@@ -91,16 +95,12 @@ func sendUserCommand(comArray []string, writePipe *os.File) error {
 /*
 记录容器信息
 */
-func recordContainerInfo(containerPID int, containerName string, commandArray []string) (error, func()) {
-	id := randStringBytes(10)
+func recordContainerInfo(containerId string, containerName string, containerPID int, commandArray []string) (error, func()) {
 	createTime := time.Now().Format("2006-01-02 15:04:05")
 	command := strings.Join(commandArray, " ")
-	if containerName == "" {
-		containerName = id // 用户不指定用户名，就使用id作为用户名
-	}
 	info := container.Info{
 		Pid:        strconv.Itoa(containerPID),
-		Id:         id,
+		Id:         containerId,
 		Name:       containerName,
 		Command:    command,
 		CreateTime: createTime,

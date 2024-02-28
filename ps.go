@@ -13,7 +13,7 @@ import (
 func ListContainers() error {
 	// 读取容器存储目录下的所有文件
 	entries, err := os.ReadDir(container.DefaultInfoLocation)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("os.ReadDir err: %v", err)
 	}
 	infos := make([]container.Info, 0, len(entries))

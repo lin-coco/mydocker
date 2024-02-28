@@ -18,6 +18,7 @@ func main() {
 		initCommand,
 		commitCommand,
 		listCommand,
+		logCommand,
 	}
 	a.Before = func(context *cli.Context) error {
 		// Log as JSON instead of the default ASCII formatter.

@@ -101,6 +101,7 @@ var (
 			var err error
 			if len(ctx.Args()) < 1 {
 				log.Errorf("Missing container name")
+				return err
 			}
 			imageName := ctx.Args().Get(0)
 			if err = commitContainer(imageName); err != nil {
@@ -116,6 +117,22 @@ var (
 			var err error
 			if err = ListContainers(); err != nil {
 				log.Errorf("docker ps err: %v", err)
+			}
+			return err
+		},
+	}
+	logCommand = cli.Command{
+		Name:  "logs",
+		Usage: "print logs of a container",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			if len(ctx.Args()) < 1 {
+				log.Error("please input your container name")
+				return err
+			}
+			containerName := ctx.Args().Get(0)
+			if err = logContainer(containerName); err != nil {
+				log.Errorf("docker logs err: %v", err)
 			}
 			return err
 		},
