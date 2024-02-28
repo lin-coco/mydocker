@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -133,6 +134,31 @@ var (
 			containerName := ctx.Args().Get(0)
 			if err = logContainer(containerName); err != nil {
 				log.Errorf("docker logs err: %v", err)
+			}
+			return err
+		},
+	}
+	execCommand = cli.Command{
+		Name:  "exec",
+		Usage: "exec a command into container",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			// this is a callback
+			if os.Getenv(EnvExecPid) != "" {
+				log.Infof("pid callback gid %v", os.Getgid())
+				return nil
+			}
+			if len(ctx.Args()) < 2 {
+				log.Errorf("missing container name or command")
+				return err
+			}
+			containerName := ctx.Args().Get(0)
+			var commandArray []string
+			for i := 1; i < len(ctx.Args()); i++ {
+				commandArray = append(commandArray, ctx.Args().Get(i))
+			}
+			if err = ExecContainer(containerName, commandArray); err != nil {
+				log.Errorf("docker exec err: %v", err)
 			}
 			return err
 		},
