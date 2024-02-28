@@ -28,6 +28,10 @@ var (
 				Usage: "volume", // 数据卷
 			},
 			cli.StringFlag{
+				Name:  "name",
+				Usage: "container name",
+			},
+			cli.StringFlag{
 				Name:  "m",
 				Usage: "memory limit",
 			},
@@ -63,12 +67,13 @@ var (
 				return err
 			}
 			volume := ctx.String("v")
+			name := ctx.String("name")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, comArray, volume); err != nil {
+			if err = Run(it, resourceConfig, volume, name, comArray); err != nil {
 				log.Error("docker run err:", err)
 			}
 			return err
@@ -100,6 +105,17 @@ var (
 			imageName := ctx.Args().Get(0)
 			if err = commitContainer(imageName); err != nil {
 				log.Errorf("docker commit err: %v", err)
+			}
+			return err
+		},
+	}
+	listCommand = cli.Command{
+		Name:  "ps",
+		Usage: "list all the containers",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			if err = ListContainers(); err != nil {
+				log.Errorf("docker ps err: %v", err)
 			}
 			return err
 		},
