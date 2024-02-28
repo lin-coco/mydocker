@@ -22,7 +22,7 @@ func logContainer(containerName string) error {
 	if err != nil {
 		return fmt.Errorf("io.ReadAll err: %v", err)
 	}
-	_, err = fmt.Fprintf(os.Stdout, string(content))
+	_, err = fmt.Fprint(os.Stdout, string(content))
 	if err != nil {
 		return fmt.Errorf("fmt.Fprintf err: %v", err)
 	}
