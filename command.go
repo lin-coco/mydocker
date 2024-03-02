@@ -54,11 +54,18 @@ var (
 		Action: func(ctx *cli.Context) error {
 			var err error
 			if len(ctx.Args()) < 1 {
-				return errors.New("missing container command")
+				return errors.New("missing image")
 			}
 			var comArray []string // 用户命令
-			for _, arg := range ctx.Args() {
+			imageName := ctx.Args().Get(0)
+			for i, arg := range ctx.Args() {
+				if i == 0 {
+					continue
+				}
 				comArray = append(comArray, arg)
+			}
+			if len(comArray) < 1 {
+				comArray = append(comArray, "sh") // 默认启动命令
 			}
 			it := ctx.Bool("it")
 			d := ctx.Bool("d")
@@ -68,13 +75,13 @@ var (
 				return err
 			}
 			volume := ctx.String("v")
-			name := ctx.String("name")
+			containerName := ctx.String("name")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, volume, name, comArray); err != nil {
+			if err = Run(it, resourceConfig, volume, containerName, imageName, comArray); err != nil {
 				log.Error("docker run err:", err)
 			}
 			return err

@@ -17,14 +17,14 @@ import (
 	"mydocker/path"
 )
 
-func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name string, comArray []string) error {
+func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, containerName string, imageName string, comArray []string) error {
 	var (
 		id          = randStringBytes(10)
 		volumePaths []string
 		err         error
 	)
-	if name == "" {
-		name = id
+	if containerName == "" {
+		containerName = id
 	}
 	if volume != "" { // 用户需要挂载卷
 		volumePaths, err = volumeExtract(volume)
@@ -33,17 +33,17 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name st
 		}
 	}
 	// parent 父进程启动命令 /proc/self/exe
-	parent, writePipe, err := container.NewParentProcessCmd(it, name)
+	parent, writePipe, err := container.NewParentProcessCmd(it, containerName)
 	if err != nil {
 		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
 	// 创建容器的运行空间(文件系统)
-	err, clearRunningSpace := container.NewRunningSpace(name, volumePaths)
+	err, clearRunningSpace := container.NewRunningSpace(imageName, containerName, volumePaths)
 	if err != nil {
 		return fmt.Errorf("container.NewRunningSpace err: %v", err)
 	}
 	// 指定运行目录
-	parent.Dir = path.MntPath(name)
+	parent.Dir = path.MntPath(containerName)
 	// docker init 成为容器运行的第一个进程
 	if err = parent.Start(); err != nil {
 		return fmt.Errorf("parent.Start() err: %v", err)
@@ -54,7 +54,7 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name st
 		return fmt.Errorf("enableParentResourceConfig err: %v", err)
 	}
 	// 记录容器信息
-	err, clearRecord := recordContainerInfo(id, name, parent.Process.Pid, cgroup2Path, volumePaths, comArray)
+	err, clearRecord := recordContainerInfo(id, containerName, parent.Process.Pid, cgroup2Path, volumePaths, imageName, comArray)
 	if err != nil {
 		return fmt.Errorf("recordContainerInfo err: %v", err)
 	}
@@ -104,7 +104,7 @@ func sendUserCommand(comArray []string, writePipe *os.File) error {
 /*
 记录容器信息
 */
-func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, commandArray []string) (error, func()) {
+func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, imageName string, commandArray []string) (error, func()) {
 	createTime := time.Now().Format("2006-01-02 15:04:05")
 	command := strings.Join(commandArray, " ")
 	info := container.Info{

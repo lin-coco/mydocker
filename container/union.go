@@ -17,7 +17,7 @@ unionPath: 容器运行联合文件系统
 mntPath: Union File System挂载点
 busyboxTarPath: tar文件路径
 */
-func NewRunningSpace(containerName string, volumePaths []string) (error, func()) {
+func NewRunningSpace(imageName string, containerName string, volumePaths []string) (error, func()) {
 	containerUnionPath := path.ContainerUnionPath(containerName)
 	lowerPath := path.LowerPath(containerName)
 	upperPath := path.UpperPath(containerName)
@@ -26,7 +26,7 @@ func NewRunningSpace(containerName string, volumePaths []string) (error, func())
 	clearFunc := func() {
 		DeleteRunningSpace(containerUnionPath, mntPath, volumePaths)
 	}
-	if err := createLowerLayer(lowerPath, path.BusyboxTar()); err != nil {
+	if err := createLowerLayer(lowerPath, path.ImagePath(imageName)); err != nil {
 		return fmt.Errorf("createLowerLayer err: %v", err), clearFunc
 	}
 	if err := createUpperLayer(upperPath); err != nil {
@@ -69,7 +69,7 @@ func DeleteRunningSpace(containerUnionPath, mntPath string, volumePaths []string
 /*
 createLowerLayer 创建只读层lower
 */
-func createLowerLayer(lowerPath string, busyboxTarPath string) error {
+func createLowerLayer(lowerPath string, imagePath string) error {
 	exist, err := pathExist(lowerPath)
 	if err != nil {
 		return fmt.Errorf("pathExist err: %v", err)
@@ -79,7 +79,7 @@ func createLowerLayer(lowerPath string, busyboxTarPath string) error {
 		if err = os.MkdirAll(lowerPath, 0777); err != nil {
 			return fmt.Errorf("os.Mkdir err: %v", err)
 		}
-		if _, err = exec.Command("tar", "-xvf", busyboxTarPath, "-C", lowerPath).CombinedOutput(); err != nil {
+		if _, err = exec.Command("tar", "-xvf", imagePath, "-C", lowerPath).CombinedOutput(); err != nil {
 			return fmt.Errorf("exec.Command().CombinedOutput err: %v", err)
 		}
 	}

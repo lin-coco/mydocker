@@ -16,6 +16,7 @@ type Info struct {
 	Command     string   `json:"command,omitempty"`    // 容器内init进程的运行命令
 	VolumePaths []string `json:"volumePaths"`          // 挂载的数据卷
 	Cgroup2Path string   `json:"cgroup2Path"`          // cgroup路径
+	ImageName   string   `json:"imageName"`            // image名称
 	CreateTime  string   `json:"createTime,omitempty"` // 创建时间
 	Status      string   `json:"status,omitempty"`     // 容器状态
 }
