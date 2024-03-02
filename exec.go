@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 
 	"mydocker/container"
 	_ "mydocker/nsenter"
+	"mydocker/path"
 )
 
 const (
@@ -21,7 +21,8 @@ const (
 
 func ExecContainer(containerName string, commandArray []string) error {
 	// 获取目标容器的pid
-	pid, err := getContainerPidByName(containerName)
+	info, err := getContainerInfoByName(containerName)
+	pid := info.Pid
 	if err != nil {
 		return fmt.Errorf("getContainerPidByName err: %v", err)
 	}
@@ -42,15 +43,15 @@ func ExecContainer(containerName string, commandArray []string) error {
 	return nil
 }
 
-func getContainerPidByName(containerName string) (string, error) {
-	configFilePath := filepath.Join(container.DefaultInfoLocation, containerName, container.ConfigName)
-	content, err := os.ReadFile(configFilePath)
+func getContainerInfoByName(containerName string) (*container.Info, error) {
+	infoPath := path.InfoPath(containerName)
+	content, err := os.ReadFile(infoPath)
 	if err != nil {
-		return "", fmt.Errorf("os.ReadFile err: %v", err)
+		return nil, fmt.Errorf("os.ReadFile err: %v", err)
 	}
 	var info container.Info
 	if err = json.Unmarshal(content, &info); err != nil {
 		log.Errorf("json.Unmarshal err: %v", err)
 	}
-	return info.Pid, nil
+	return &info, nil
 }

@@ -2,26 +2,35 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
-	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"mydocker/app"
 	"mydocker/cgroups"
 	"mydocker/container"
+	"mydocker/path"
 )
 
 func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name string, comArray []string) error {
-	id := randStringBytes(10)
+	var (
+		id          = randStringBytes(10)
+		volumePaths []string
+		err         error
+	)
 	if name == "" {
 		name = id
+	}
+	if volume != "" { // 用户需要挂载卷
+		volumePaths, err = volumeExtract(volume)
+		if err != nil {
+			return fmt.Errorf("volumeExtract err: %v", err)
+		}
 	}
 	// parent 父进程启动命令 /proc/self/exe
 	parent, writePipe, err := container.NewParentProcessCmd(it, name)
@@ -29,23 +38,23 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name st
 		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
 	// 创建容器的运行空间(文件系统)
-	err, clearRunningSpace := container.NewRunningSpace(app.UnionPath, app.MntPath, app.BusyboxTar, volume)
+	err, clearRunningSpace := container.NewRunningSpace(name, volumePaths)
 	if err != nil {
-		return fmt.Errorf("NewRunningSpace err: %v", err)
+		return fmt.Errorf("container.NewRunningSpace err: %v", err)
 	}
 	// 指定运行目录
-	parent.Dir = app.MntPath
+	parent.Dir = path.MntPath(name)
 	// docker init 成为容器运行的第一个进程
 	if err = parent.Start(); err != nil {
 		return fmt.Errorf("parent.Start() err: %v", err)
 	}
 	// 设置资源限制
-	err, clearCgroup := enableParentResourceConfig(resourceConfig, parent.Process.Pid)
+	cgroup2Path, err, clearCgroup := enableParentResourceConfig(resourceConfig, parent.Process.Pid)
 	if err != nil {
 		return fmt.Errorf("enableParentResourceConfig err: %v", err)
 	}
 	// 记录容器信息
-	err, clearRecord := recordContainerInfo(id, name, parent.Process.Pid, comArray)
+	err, clearRecord := recordContainerInfo(id, name, parent.Process.Pid, cgroup2Path, volumePaths, comArray)
 	if err != nil {
 		return fmt.Errorf("recordContainerInfo err: %v", err)
 	}
@@ -64,23 +73,23 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, name st
 	return nil
 }
 
-func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPid int) (error, func()) {
-	cgroupPath, err := cgroups.Create(parentPid)
+func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPid int) (string, error, func()) {
+	cgroup2Path, err := cgroups.Create(parentPid)
 	if err != nil {
-		return err, nil
+		return "", err, nil
 	}
 	clearCgroup := func() {
-		if err := cgroups.Clear(cgroupPath); err != nil {
+		if err := cgroups.Clear(cgroup2Path); err != nil {
 			log.Errorf("cgroups.Clear err: %v", err)
 		}
 	}
-	if err = cgroups.Set(cgroupPath, resourceConfig); err != nil {
-		return err, nil
+	if err = cgroups.Set(cgroup2Path, resourceConfig); err != nil {
+		return "", fmt.Errorf("cgroups.Set err: %v", err), nil
 	}
-	if err = cgroups.Apply(cgroupPath, parentPid); err != nil {
-		return err, nil
+	if err = cgroups.Apply(cgroup2Path, parentPid); err != nil {
+		return "", fmt.Errorf("cgroups.Apply err: %v", err), nil
 	}
-	return nil, clearCgroup
+	return cgroup2Path, nil, clearCgroup
 }
 
 func sendUserCommand(comArray []string, writePipe *os.File) error {
@@ -95,22 +104,24 @@ func sendUserCommand(comArray []string, writePipe *os.File) error {
 /*
 记录容器信息
 */
-func recordContainerInfo(containerId string, containerName string, containerPID int, commandArray []string) (error, func()) {
+func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, commandArray []string) (error, func()) {
 	createTime := time.Now().Format("2006-01-02 15:04:05")
 	command := strings.Join(commandArray, " ")
 	info := container.Info{
-		Pid:        strconv.Itoa(containerPID),
-		Id:         containerId,
-		Name:       containerName,
-		Command:    command,
-		CreateTime: createTime,
-		Status:     container.RUNNING,
+		Pid:         strconv.Itoa(containerPID),
+		Id:          containerId,
+		Name:        containerName,
+		Command:     command,
+		VolumePaths: volumePaths,
+		Cgroup2Path: cgroup2Path,
+		CreateTime:  createTime,
+		Status:      container.RUNNING,
 	}
 	infoBytes, err := json.Marshal(&info)
 	if err != nil {
 		return fmt.Errorf("json.Marshal err: %v", err), nil
 	}
-	infoDir := path.Join(container.DefaultInfoLocation, containerName)
+	infoDir := path.ContainerInfoPath(containerName)
 	if err = os.MkdirAll(infoDir, 0622); err != nil {
 		return fmt.Errorf("os.MkdirAll err: %v", err), nil
 	}
@@ -124,7 +135,7 @@ func recordContainerInfo(containerId string, containerName string, containerPID 
 			clearFunc()
 		}
 	}()
-	infoPath := filepath.Join(infoDir, container.ConfigName)
+	infoPath := path.InfoPath(containerName)
 	file, err := os.Create(infoPath)
 	if err != nil {
 		return fmt.Errorf("os.Create err: %v", err), nil
@@ -156,4 +167,15 @@ func randStringBytes(n int) string {
 		s += strconv.Itoa(r.Intn(10))
 	}
 	return s
+}
+
+/*
+解析volume字符串
+*/
+func volumeExtract(volume string) ([]string, error) {
+	volumeUrls := strings.Split(volume, ":")
+	if len(volumeUrls) != 2 || volumeUrls[0] == "" || volumeUrls[1] == "" {
+		return nil, errors.New("volume parameter input is not correct")
+	}
+	return volumeUrls, nil
 }

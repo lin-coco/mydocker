@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
-	"mydocker/container"
+	"mydocker/path"
 )
 
 func logContainer(containerName string) error {
-	logFilePath := filepath.Join(container.DefaultInfoLocation, containerName, container.ContainerLog)
+	logFilePath := path.LogPath(containerName)
 	file, err := os.Open(logFilePath)
 	if err != nil {
 		return fmt.Errorf("os.Open err: %v", err)

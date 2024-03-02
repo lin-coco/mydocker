@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 
 	"mydocker/container"
+	"mydocker/path"
 )
 
 func ListContainers() error {
 	// 读取容器存储目录下的所有文件
-	entries, err := os.ReadDir(container.DefaultInfoLocation)
+	entries, err := os.ReadDir(path.ContainerInfoLocation())
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("os.ReadDir err: %v", err)
 	}
@@ -20,7 +20,7 @@ func ListContainers() error {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			containerName := entry.Name()
-			configFilePath := filepath.Join(container.DefaultInfoLocation, containerName, container.ConfigName)
+			configFilePath := path.InfoPath(containerName)
 			content, err := os.ReadFile(configFilePath)
 			if err != nil {
 				return fmt.Errorf("os.ReadFile err: %v", err)

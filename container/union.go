@@ -1,12 +1,12 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
-	"strings"
+	path2 "path"
+
+	"mydocker/path"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -17,47 +17,42 @@ unionPath: 容器运行联合文件系统
 mntPath: Union File System挂载点
 busyboxTarPath: tar文件路径
 */
-func NewRunningSpace(unionPath string, mntPath string, busyboxTarPath string, volume string) (error, func()) {
+func NewRunningSpace(containerName string, volumePaths []string) (error, func()) {
+	containerUnionPath := path.ContainerUnionPath(containerName)
+	lowerPath := path.LowerPath(containerName)
+	upperPath := path.UpperPath(containerName)
+	workerPath := path.WorkerPath(containerName)
+	mntPath := path.MntPath(containerName)
 	clearFunc := func() {
-		deleteRunningSpace(unionPath, mntPath, volume)
+		DeleteRunningSpace(containerUnionPath, mntPath, volumePaths)
 	}
-	lower := path.Join(unionPath, "lowerLayer")
-	upper := path.Join(unionPath, "upperLayer")
-	worker := path.Join(unionPath, "workerLayer")
-	if err := createLowerLayer(lower, busyboxTarPath); err != nil {
+	if err := createLowerLayer(lowerPath, path.BusyboxTar()); err != nil {
 		return fmt.Errorf("createLowerLayer err: %v", err), clearFunc
 	}
-	if err := createUpperLayer(upper); err != nil {
+	if err := createUpperLayer(upperPath); err != nil {
 		return fmt.Errorf("createUpperLayer err: %v", err), clearFunc
 	}
-	if err := createWorkerLayer(worker); err != nil {
+	if err := createWorkerLayer(workerPath); err != nil {
 		return fmt.Errorf("createWorkerLayer err: %v", err), clearFunc
 	}
 	if err := createMntPath(mntPath); err != nil {
 		return fmt.Errorf("createMntPath err: %v", err), clearFunc
 	}
-	if err := execMountPoint(lower, upper, worker, mntPath); err != nil {
+	if err := execMountPoint(lowerPath, upperPath, workerPath, mntPath); err != nil {
 		return fmt.Errorf("CreateMountPoint err: %v", err), clearFunc
 	}
-	if volume != "" { // 用户需要挂载卷
-		volumePaths, err := volumeExtract(volume)
-		if err != nil {
-			return fmt.Errorf("volumeExtract err: %v", err), clearFunc
-		}
-		if err = execMountVolume(mntPath, volumePaths); err != nil {
-			return fmt.Errorf("execMountVolume err: %v", err), clearFunc
-		}
+	if err := execMountVolume(mntPath, volumePaths); err != nil {
+		return fmt.Errorf("execMountVolume err: %v", err), clearFunc
 	}
+
 	return nil, clearFunc
 }
 
 /*
-deleteRunningSpace 删除容器运行时文件系统，退出容器
+DeleteRunningSpace 删除容器运行时文件系统，退出容器
 */
-func deleteRunningSpace(unionPath, mntPath, volume string) {
-	upper := path.Join(unionPath, "upperLayer")
-	worker := path.Join(unionPath, "workerLayer")
-	if err := deleteMountVolume(mntPath, volume); err != nil {
+func DeleteRunningSpace(containerUnionPath, mntPath string, volumePaths []string) {
+	if err := deleteMountVolume(mntPath, volumePaths); err != nil {
 		log.Errorf("deleteMountVolume err: %v", err)
 	}
 	if err := deleteMountPoint(mntPath); err != nil {
@@ -66,11 +61,8 @@ func deleteRunningSpace(unionPath, mntPath, volume string) {
 	if err := deleteMntPath(mntPath); err != nil {
 		log.Errorf("deleteMntPath err: %v", err)
 	}
-	if err := deleteUpperLayer(upper); err != nil {
-		log.Errorf("deleteUpperLayer err: %v", err)
-	}
-	if err := deleteWorkerLayer(worker); err != nil {
-		log.Errorf("deleteWorkerLayer err: %v", err)
+	if err := deleteContainerUnionPath(containerUnionPath); err != nil {
+		log.Errorf("deleteContainerUnionPath err: %v", err)
 	}
 }
 
@@ -143,6 +135,9 @@ func execMountPoint(lowerPath string, upperPath string, workerPath string, mntPa
 execMountVolume 挂载数据卷
 */
 func execMountVolume(mntPath string, volumeUrls []string) error {
+	if len(volumeUrls) != 2 {
+		return nil
+	}
 	// 创建宿主机文件目录
 	parentPath := volumeUrls[0]
 	if err := os.MkdirAll(parentPath, 0777); err != nil {
@@ -150,7 +145,7 @@ func execMountVolume(mntPath string, volumeUrls []string) error {
 	}
 	// 在容器中创建挂载点
 	containerUrl := volumeUrls[1]
-	containerVolumePath := path.Join(mntPath, containerUrl)
+	containerVolumePath := path2.Join(mntPath, containerUrl)
 	if err := os.MkdirAll(containerVolumePath, 0777); err != nil {
 		return fmt.Errorf("os.MkdirAll err: %v", err)
 	}
@@ -159,23 +154,20 @@ func execMountVolume(mntPath string, volumeUrls []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("cmd.Run() err: %v", err)
+		return fmt.Errorf("cmd.Run err: %v", err)
 	}
 	return nil
 }
 
-func deleteMountVolume(mntPath, volume string) error {
-	if volume != "" {
-		volumePaths, err := volumeExtract(volume)
-		if err != nil {
-			return nil
-		}
-		cmd := exec.Command("umount", path.Join(mntPath, volumePaths[1]))
-		cmd.Stdout = os.Stdout
-		cmd.Stdout = os.Stdout
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("cmd.Run() err: %v", err)
-		}
+func deleteMountVolume(mntPath string, volumePaths []string) error {
+	if len(volumePaths) != 2 {
+		return nil
+	}
+	cmd := exec.Command("umount", path2.Join(mntPath, volumePaths[1]))
+	cmd.Stdout = os.Stdout
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("cmd.Run err: %v", err)
 	}
 	return nil
 }
@@ -203,35 +195,11 @@ func deleteMntPath(mntPath string) error {
 	return nil
 }
 
-/*
-deleteUpperLayer 删除upper
-*/
-func deleteUpperLayer(upperPath string) error {
-	if err := os.RemoveAll(upperPath); err != nil {
+func deleteContainerUnionPath(containerUnionPath string) error {
+	if err := os.RemoveAll(containerUnionPath); err != nil {
 		return fmt.Errorf("os.RemoveAll err: %v", err)
 	}
 	return nil
-}
-
-/*
-deleteWorkerLayer 删除worker
-*/
-func deleteWorkerLayer(workerPath string) error {
-	if err := os.RemoveAll(workerPath); err != nil {
-		return fmt.Errorf("os.RemoveAll err: %v", err)
-	}
-	return nil
-}
-
-/*
-解析volume字符串
-*/
-func volumeExtract(volume string) ([]string, error) {
-	volumeUrls := strings.Split(volume, ":")
-	if len(volumeUrls) != 2 || volumeUrls[0] == "" || volumeUrls[1] == "" {
-		return nil, errors.New("volume parameter input is not correct")
-	}
-	return volumeUrls, nil
 }
 
 /*

@@ -100,12 +100,13 @@ var (
 		Usage: "commit a container into image",
 		Action: func(ctx *cli.Context) error {
 			var err error
-			if len(ctx.Args()) < 1 {
-				log.Errorf("Missing container name")
+			if len(ctx.Args()) < 2 {
+				log.Errorf("missing container name or image name")
 				return err
 			}
-			imageName := ctx.Args().Get(0)
-			if err = commitContainer(imageName); err != nil {
+			containerName := ctx.Args().Get(0)
+			imageName := ctx.Args().Get(1)
+			if err = commitContainer(containerName, imageName); err != nil {
 				log.Errorf("docker commit err: %v", err)
 			}
 			return err
@@ -159,6 +160,38 @@ var (
 			}
 			if err = ExecContainer(containerName, commandArray); err != nil {
 				log.Errorf("docker exec err: %v", err)
+			}
+			return err
+		},
+	}
+	stopCommand = cli.Command{
+		Name:  "stop",
+		Usage: "stop a container",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			if len(ctx.Args()) < 1 {
+				log.Errorf("missing container name")
+				return err
+			}
+			containerName := ctx.Args().Get(0)
+			if err = stopContainer(containerName); err != nil {
+				log.Errorf("docker stop err: %v", err)
+			}
+			return err
+		},
+	}
+	rmCommand = cli.Command{
+		Name:  "rm",
+		Usage: "rm a container",
+		Action: func(ctx *cli.Context) error {
+			var err error
+			if len(ctx.Args()) < 1 {
+				log.Errorf("missing container name")
+				return err
+			}
+			containerName := ctx.Args().Get(0)
+			if err = removeContainer(containerName); err != nil {
+				log.Errorf("docker stop err: %v", err)
 			}
 			return err
 		},

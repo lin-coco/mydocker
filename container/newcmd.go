@@ -4,31 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
-	"path/filepath"
 	"syscall"
 
-	"mydocker/app"
-)
-
-var (
-	RUNNING string = "running"
-	STOP    string = "stop"
-	Exit    string = "exited"
-)
-var (
-	DefaultInfoLocation string = "/var/run/" + app.Name
-	ConfigName          string = "config.json"
-	ContainerLog        string = "container.log"
+	"mydocker/path"
 )
 
 type Info struct {
-	Pid        string `json:"pid,omitempty"`        // 容器在宿主机上的Pid
-	Id         string `json:"id,omitempty"`         // 容器id
-	Name       string `json:"name,omitempty"`       // 容器名
-	Command    string `json:"command,omitempty"`    // 容器内init进程的运行命令
-	CreateTime string `json:"createTime,omitempty"` // 创建时间
-	Status     string `json:"status,omitempty"`     // 容器状态
+	Pid         string   `json:"pid,omitempty"`        // 容器在宿主机上的Pid
+	Id          string   `json:"id,omitempty"`         // 容器id
+	Name        string   `json:"name,omitempty"`       // 容器名
+	Command     string   `json:"command,omitempty"`    // 容器内init进程的运行命令
+	VolumePaths []string `json:"volumePaths"`          // 挂载的数据卷
+	Cgroup2Path string   `json:"cgroup2Path"`          // cgroup路径
+	CreateTime  string   `json:"createTime,omitempty"` // 创建时间
+	Status      string   `json:"status,omitempty"`     // 容器状态
 }
 
 /*
@@ -50,10 +39,10 @@ func NewParentProcessCmd(it bool, containerName string) (*exec.Cmd, *os.File, er
 		init.Stderr = os.Stderr
 	} else { // 后台运行
 		// 生成容器对应的log文件
-		if err := os.MkdirAll(path.Join(DefaultInfoLocation, containerName), 0622); err != nil {
+		if err := os.MkdirAll(path.ContainerInfoPath(containerName), 0622); err != nil {
 			return nil, nil, fmt.Errorf("os.MkdirAll err: %v", err)
 		}
-		logPath := filepath.Join(DefaultInfoLocation, containerName, ContainerLog)
+		logPath := path.LogPath(containerName)
 		file, err := os.Create(logPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("os.Create err: %v", err)

@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
+	path2 "path"
+
+	"mydocker/path"
 
 	log "github.com/sirupsen/logrus"
-
-	"mydocker/app"
 )
 
-func commitContainer(imageName string) error {
-	imageTar := path.Join("/root", imageName+".tar")
-	cmd := exec.Command("tar", "-czf", imageTar, "-C", app.MntPath, ".")
+func commitContainer(containerName string, imageName string) error {
+	imageTar := path2.Join("/root", imageName+".tar")
+	cmd := exec.Command("tar", "-czf", imageTar, "-C", path.MntPath(containerName), ".")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
