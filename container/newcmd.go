@@ -24,7 +24,7 @@ type Info struct {
 /*
 NewParentProcessCmd 生成父进程启动命令，也即是容器 /proc/self/exe init [command]
 */
-func NewParentProcessCmd(it bool, containerName string) (*exec.Cmd, *os.File, error) {
+func NewParentProcessCmd(it bool, envs []string, containerName string) (*exec.Cmd, *os.File, error) {
 	readPipe, writePipe, err := os.Pipe()
 	if err != nil {
 		return nil, nil, fmt.Errorf("os.Pipe err: %v", err)
@@ -52,5 +52,6 @@ func NewParentProcessCmd(it bool, containerName string) (*exec.Cmd, *os.File, er
 		init.Stdout = file
 	}
 	init.ExtraFiles = []*os.File{readPipe}
+	init.Env = append(os.Environ(), envs...) // 设置进程的环境变量
 	return init, writePipe, nil
 }

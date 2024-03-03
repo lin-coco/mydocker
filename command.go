@@ -28,10 +28,15 @@ var (
 				Name:  "v",
 				Usage: "volume", // 数据卷
 			},
+			cli.StringSliceFlag{
+				Name:  "e",
+				Usage: "set env", // 设置环境变量
+			},
 			cli.StringFlag{
 				Name:  "name",
 				Usage: "container name",
 			},
+
 			cli.StringFlag{
 				Name:  "m",
 				Usage: "memory limit",
@@ -76,12 +81,13 @@ var (
 			}
 			volume := ctx.String("v")
 			containerName := ctx.String("name")
+			envs := ctx.StringSlice("e")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, volume, containerName, imageName, comArray); err != nil {
+			if err = Run(it, resourceConfig, volume, envs, containerName, imageName, comArray); err != nil {
 				log.Error("docker run err:", err)
 			}
 			return err

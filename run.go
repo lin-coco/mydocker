@@ -17,7 +17,7 @@ import (
 	"mydocker/path"
 )
 
-func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, containerName string, imageName string, comArray []string) error {
+func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []string, containerName string, imageName string, comArray []string) error {
 	var (
 		id          = randStringBytes(10)
 		volumePaths []string
@@ -33,7 +33,7 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, contain
 		}
 	}
 	// parent 父进程启动命令 /proc/self/exe
-	parent, writePipe, err := container.NewParentProcessCmd(it, containerName)
+	parent, writePipe, err := container.NewParentProcessCmd(it, envs, containerName)
 	if err != nil {
 		return fmt.Errorf("container.NewParentProcessCmd err: %v", err)
 	}
@@ -46,7 +46,7 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, contain
 	parent.Dir = path.MntPath(containerName)
 	// docker init 成为容器运行的第一个进程
 	if err = parent.Start(); err != nil {
-		return fmt.Errorf("parent.Start() err: %v", err)
+		return fmt.Errorf("parent.Start err: %v", err)
 	}
 	// 设置资源限制
 	cgroup2Path, err, clearCgroup := enableParentResourceConfig(resourceConfig, parent.Process.Pid)
@@ -64,12 +64,13 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, contain
 	}
 	if it { // 交互式创建：父进程等待子进程结束
 		if err = parent.Wait(); err != nil {
-			return fmt.Errorf("parent.Wait() err:%v", err)
+			return fmt.Errorf("parent.Wait err:%v", err)
 		}
 		clearRecord()
 		clearCgroup()
 		clearRunningSpace()
 	}
+	log.Infof("container running")
 	return nil
 }
 
@@ -114,6 +115,7 @@ func recordContainerInfo(containerId string, containerName string, containerPID 
 		Command:     command,
 		VolumePaths: volumePaths,
 		Cgroup2Path: cgroup2Path,
+		ImageName:   imageName,
 		CreateTime:  createTime,
 		Status:      container.RUNNING,
 	}
