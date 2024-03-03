@@ -25,6 +25,12 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []
 	)
 	if containerName == "" {
 		containerName = id
+	} else {
+		if b, err := isExistContainerName(containerName); err != nil { // 检查容器名称是否重复
+			return fmt.Errorf("isExistContainerName err: %v", err)
+		} else if b {
+			return fmt.Errorf("same container name exists")
+		}
 	}
 	if volume != "" { // 用户需要挂载卷
 		volumePaths, err = volumeExtract(volume)
@@ -180,4 +186,18 @@ func volumeExtract(volume string) ([]string, error) {
 		return nil, errors.New("volume parameter input is not correct")
 	}
 	return volumeUrls, nil
+}
+
+/*
+检查容器名称是否重复
+*/
+func isExistContainerName(name string) (bool, error) {
+	containerInfoPath := path.ContainerInfoPath(name)
+	_, err := os.Stat(containerInfoPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
 }
