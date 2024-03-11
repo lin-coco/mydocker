@@ -20,7 +20,7 @@ import (
 // 每次运行前都设置一下ipv4转发
 func init() {
 	// 执行sysctl命令
-	cmd := exec.Command("sysctl", "net.ipv4.ip_forward = 1")
+	cmd := exec.Command("sysctl", "net.ipv4.ip_forward=1")
 	_, err := cmd.CombinedOutput()
 	// 检查错误
 	if err != nil {
