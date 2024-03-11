@@ -17,13 +17,14 @@ import (
 	"mydocker/path"
 )
 
-func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []string, containerName string, imageName string, comArray []string) error {
+func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []string, networkName string, portMappings []string, containerName string, imageName string, comArray []string) error {
 	var (
 		id          = randStringBytes(10)
 		volumePaths []string
+		pms         [][]string
 		err         error
 	)
-	if containerName == "" {
+	if containerName == "" { // 用户没有设置名称
 		containerName = id
 	} else {
 		if b, err := isExistContainerName(containerName); err != nil { // 检查容器名称是否重复
@@ -36,6 +37,15 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []
 		volumePaths, err = volumeExtract(volume)
 		if err != nil {
 			return fmt.Errorf("volumeExtract err: %v", err)
+		}
+	}
+	if len(portMappings) != 0 { // 用户需要端口映射
+		for _, p := range portMappings {
+			pm := strings.Split(p, ":")
+			if len(pm) != 2 {
+				return fmt.Errorf("portmapping:%s err", p)
+			}
+			pms = append(pms, pm)
 		}
 	}
 	// parent 父进程启动命令 /proc/self/exe
@@ -60,9 +70,15 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []
 		return fmt.Errorf("enableParentResourceConfig err: %v", err)
 	}
 	// 记录容器信息
-	err, clearRecord := recordContainerInfo(id, containerName, parent.Process.Pid, cgroup2Path, volumePaths, imageName, comArray)
+	cInfo, err, clearRecord := recordContainerInfo(id, containerName, parent.Process.Pid, cgroup2Path, volumePaths, networkName, pms, imageName, comArray)
 	if err != nil {
 		return fmt.Errorf("recordContainerInfo err: %v", err)
+	}
+	// 连接网络
+	if networkName != "" {
+		if err = Connect(networkName, cInfo); err != nil {
+			return fmt.Errorf("connect err: %v", err)
+		}
 	}
 	// 发送用户命令 如 /bin/bash
 	if err = sendUserCommand(comArray, writePipe); err != nil {
@@ -75,6 +91,12 @@ func Run(it bool, resourceConfig *cgroups.ResourceConfig, volume string, envs []
 		clearRecord()
 		clearCgroup()
 		clearRunningSpace()
+		if networkName != "" {
+			// 从网络中移除设备
+			if err = DisConnect(networkName, cInfo); err != nil {
+				return fmt.Errorf("disConnect err: %v", err)
+			}
+		}
 	}
 	log.Infof("container running")
 	return nil
@@ -87,11 +109,11 @@ func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPi
 	}
 	clearCgroup := func() {
 		if err := cgroups.Clear(cgroup2Path); err != nil {
-			log.Errorf("cgroups.Clear err: %v", err)
+			log.Errorf("cgroups.clear err: %v", err)
 		}
 	}
 	if err = cgroups.Set(cgroup2Path, resourceConfig); err != nil {
-		return "", fmt.Errorf("cgroups.Set err: %v", err), nil
+		return "", fmt.Errorf("cgroups.set err: %v", err), nil
 	}
 	if err = cgroups.Apply(cgroup2Path, parentPid); err != nil {
 		return "", fmt.Errorf("cgroups.Apply err: %v", err), nil
@@ -111,27 +133,29 @@ func sendUserCommand(comArray []string, writePipe *os.File) error {
 /*
 记录容器信息
 */
-func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, imageName string, commandArray []string) (error, func()) {
+func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, networkName string, portMappings [][]string, imageName string, commandArray []string) (*container.Info, error, func()) {
 	createTime := time.Now().Format("2006-01-02 15:04:05")
 	command := strings.Join(commandArray, " ")
 	info := container.Info{
-		Pid:         strconv.Itoa(containerPID),
-		Id:          containerId,
-		Name:        containerName,
-		Command:     command,
-		VolumePaths: volumePaths,
-		Cgroup2Path: cgroup2Path,
-		ImageName:   imageName,
-		CreateTime:  createTime,
-		Status:      container.RUNNING,
+		Pid:          strconv.Itoa(containerPID),
+		Id:           containerId,
+		Name:         containerName,
+		Command:      command,
+		VolumePaths:  volumePaths,
+		Cgroup2Path:  cgroup2Path,
+		NetworkName:  networkName,
+		PortMappings: portMappings,
+		ImageName:    imageName,
+		CreateTime:   createTime,
+		Status:       container.RUNNING,
 	}
 	infoBytes, err := json.Marshal(&info)
 	if err != nil {
-		return fmt.Errorf("json.Marshal err: %v", err), nil
+		return nil, fmt.Errorf("json.Marshal err: %v", err), nil
 	}
 	infoDir := path.ContainerInfoPath(containerName)
 	if err = os.MkdirAll(infoDir, 0622); err != nil {
-		return fmt.Errorf("os.MkdirAll err: %v", err), nil
+		return nil, fmt.Errorf("os.MkdirAll err: %v", err), nil
 	}
 	clearFunc := func() {
 		if err := deleteContainerInfo(infoDir); err != nil {
@@ -146,15 +170,15 @@ func recordContainerInfo(containerId string, containerName string, containerPID 
 	infoPath := path.InfoPath(containerName)
 	file, err := os.Create(infoPath)
 	if err != nil {
-		return fmt.Errorf("os.Create err: %v", err), nil
+		return nil, fmt.Errorf("os.Create err: %v", err), nil
 	}
 	defer func() {
 		_ = file.Close()
 	}()
 	if _, err = file.Write(infoBytes); err != nil {
-		return fmt.Errorf("file.Write err: %v", err), nil
+		return nil, fmt.Errorf("file.Write err: %v", err), nil
 	}
-	return err, clearFunc
+	return &info, err, clearFunc
 }
 
 /*

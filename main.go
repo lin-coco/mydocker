@@ -22,6 +22,7 @@ func main() {
 		execCommand,
 		stopCommand,
 		rmCommand,
+		networkCommand,
 	}
 	a.Before = func(context *cli.Context) error {
 		// Log as JSON instead of the default ASCII formatter.

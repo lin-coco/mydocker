@@ -35,7 +35,7 @@ func removeContainer(f bool, containerName string) error {
 	}
 	// 清理cgroup
 	if err = cgroups.Clear(info.Cgroup2Path); err != nil {
-		return fmt.Errorf("cgroups.Clear err: %v", err)
+		return fmt.Errorf("cgroups.clear err: %v", err)
 	}
 	// 删除存储容器信息的路径
 	if err = os.RemoveAll(path.ContainerInfoPath(containerName)); err != nil {
@@ -50,6 +50,10 @@ func removeContainer(f bool, containerName string) error {
 				return fmt.Errorf("os.RemoveAll err: %v", err)
 			}
 		}
+	}
+	// 删除网络
+	if err = DisConnect(info.NetworkName, info); err != nil {
+		return fmt.Errorf("DisConnect err: %v", err)
 	}
 	// 删除容器
 	container.DeleteRunningSpace(path.ContainerUnionPath(containerName), path.MntPath(containerName), info.VolumePaths)

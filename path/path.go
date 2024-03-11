@@ -17,10 +17,14 @@ const (
 	upperPath            = containerUnionPath + "/upper"  // upper路径 （%s为容器名称）
 	workerPath           = containerUnionPath + "/worker" // worker路径 （%s为容器名称）
 	// 容器基本信息
-	containerInfoLocation = "/var/run/" + app.Name
+	containerInfoLocation = "/var/run/" + app.Name + "/container"
 	containerInfoPath     = containerInfoLocation + "/%s"
 	infoPath              = containerInfoPath + "/info.json"
 	logPath               = containerInfoPath + "/container.log"
+	// 网络配置存储目录
+	networkLocation = "/var/run/" + app.Name + "/network"
+	networkPath     = networkLocation + "/network"
+	ipamPath        = networkLocation + "/ipam/subnet.json"
 )
 
 func OverlayUnionLocation() string {
@@ -58,4 +62,11 @@ func InfoPath(containerName string) string {
 }
 func LogPath(containerName string) string {
 	return fmt.Sprintf(logPath, containerName)
+}
+
+func NetworkPath() string {
+	return networkPath
+}
+func IpamPath() string {
+	return ipamPath
 }

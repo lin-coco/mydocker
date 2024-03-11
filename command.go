@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -36,7 +37,14 @@ var (
 				Name:  "name",
 				Usage: "container name",
 			},
-
+			cli.StringFlag{
+				Name:  "net",
+				Usage: "net name",
+			},
+			cli.StringSliceFlag{
+				Name:  "p",
+				Usage: "host-port:container-port",
+			},
 			cli.StringFlag{
 				Name:  "m",
 				Usage: "memory limit",
@@ -82,12 +90,14 @@ var (
 			volume := ctx.String("v")
 			containerName := ctx.String("name")
 			envs := ctx.StringSlice("e")
+			networkName := ctx.String("net")
+			portMappings := ctx.StringSlice("p")
 			resourceConfig := &cgroups.ResourceConfig{
 				MemoryLimit: ctx.String("m"),
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, volume, envs, containerName, imageName, comArray); err != nil {
+			if err = Run(it, resourceConfig, volume, envs, networkName, portMappings, containerName, imageName, comArray); err != nil {
 				log.Error("docker run err:", err)
 			}
 			return err
@@ -214,6 +224,65 @@ var (
 				log.Errorf("docker stop err: %v", err)
 			}
 			return err
+		},
+	}
+	networkCommand = cli.Command{
+		Name:  "network",
+		Usage: "container network commands",
+		Subcommands: []cli.Command{
+			{
+				Name:  "create",
+				Usage: "create a container network",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "driver",
+						Usage: "network driver",
+					},
+					cli.StringFlag{
+						Name:  "subnet",
+						Usage: "subnet cidr",
+					},
+					cli.StringFlag{
+						Name:  "gateway",
+						Usage: "gateway ip",
+					},
+				},
+				Action: func(ctx *cli.Context) error {
+					if len(ctx.Args()) < 1 {
+						log.Errorf("missing network name")
+						return fmt.Errorf("missing network name")
+					}
+					if err := CreateNetwork(ctx.String("driver"), ctx.String("subnet"), ctx.String("gateway"), ctx.Args().Get(0)); err != nil {
+						log.Errorf("docker network create err: %v", err)
+						return err
+					}
+					return nil
+				},
+			}, {
+				Name:  "list",
+				Usage: "list container network",
+				Action: func(ctx *cli.Context) error {
+					if err := ListNetwork(); err != nil {
+						log.Errorf("docker network list err: %v", err)
+						return err
+					}
+					return nil
+				},
+			}, {
+				Name:  "remove",
+				Usage: "remove container network",
+				Action: func(ctx *cli.Context) error {
+					if len(ctx.Args()) < 1 {
+						log.Errorf("missing network name")
+						return fmt.Errorf("missing network name")
+					}
+					if err := DeleteNetwork(ctx.Args().Get(0)); err != nil {
+						log.Errorf("docker network remove err: %v", err)
+						return err
+					}
+					return nil
+				},
+			},
 		},
 	}
 )
