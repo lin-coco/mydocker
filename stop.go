@@ -21,9 +21,7 @@ func stopContainer(containerName string) error {
 		return fmt.Errorf("strconv.Atoi err: %v", err)
 	}
 	// 发送SIGTERM来通知容器停止
-	if err = syscall.Kill(pid, syscall.SIGTERM); err != nil {
-		return fmt.Errorf("syscall.Kill err: %v", err)
-	}
+	_ = syscall.Kill(pid, syscall.SIGTERM) // 忽略错误
 	// 修改容器状态
 	info.Status = container.STOP
 	info.Pid = " "
