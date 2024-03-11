@@ -52,8 +52,10 @@ func removeContainer(f bool, containerName string) error {
 		}
 	}
 	// 删除网络
-	if err = DisConnect(info.NetworkName, info); err != nil {
-		return fmt.Errorf("DisConnect err: %v", err)
+	if info.NetworkName != "" {
+		if err = DisConnect(info.NetworkName, info); err != nil {
+			return fmt.Errorf("DisConnect err: %v", err)
+		}
 	}
 	// 删除容器
 	container.DeleteRunningSpace(path.ContainerUnionPath(containerName), path.MntPath(containerName), info.VolumePaths)
