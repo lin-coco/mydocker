@@ -17,6 +17,17 @@ import (
 	"mydocker/network"
 )
 
+// 每次运行前都设置一下ipv4转发
+func init() {
+	// 执行sysctl命令
+	cmd := exec.Command("sysctl", "net.ipv4.ip_forward = 1")
+	_, err := cmd.CombinedOutput()
+	// 检查错误
+	if err != nil {
+		log.Warn("error setting sysctl rule:", err)
+	}
+}
+
 /*
 CreateNetwork 创建网络
 ./mydocker network create --driver bridge --subnet 192.168.101.0/24 --gateway 192.168.101.1 testbridge
