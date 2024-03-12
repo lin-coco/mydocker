@@ -11,11 +11,11 @@ const (
 	overlayUnionLocation = "/var/lib/" + app.Name + "/overlay" // 联合文件系统
 	imageStoragePath     = overlayUnionLocation + "/image"
 	imagePath            = imageStoragePath + "/%s.tar"
-	containerUnionPath   = overlayUnionLocation + "/%s"   // 容器目录（%s为容器名称）
-	mntPath              = containerUnionPath + "/mnt"    // 挂载路径 （%s为容器名称）
-	lowerPath            = containerUnionPath + "/lower"  // lower路径 （%s为容器名称）
-	upperPath            = containerUnionPath + "/upper"  // upper路径 （%s为容器名称）
-	workerPath           = containerUnionPath + "/worker" // worker路径 （%s为容器名称）
+	containerUnionPath   = overlayUnionLocation + "/container/%s" // 容器目录（%s为容器名称）
+	mntPath              = containerUnionPath + "/mnt"            // 挂载路径 （%s为容器名称）
+	lowerPath            = containerUnionPath + "/lower"          // lower路径 （%s为容器名称）
+	upperPath            = containerUnionPath + "/upper"          // upper路径 （%s为容器名称）
+	workerPath           = containerUnionPath + "/worker"         // worker路径 （%s为容器名称）
 	// 容器基本信息
 	containerInfoLocation = "/var/run/" + app.Name + "/container"
 	containerInfoPath     = containerInfoLocation + "/%s"
@@ -24,15 +24,8 @@ const (
 	// 网络配置存储目录
 	networkLocation = "/var/run/" + app.Name + "/network"
 	networkPath     = networkLocation + "/network"
-	ipamPath        = networkLocation + "/ipam/subnet.json"
 )
 
-func OverlayUnionLocation() string {
-	return overlayUnionLocation
-}
-func ImageStoragePath() string {
-	return imageStoragePath
-}
 func ImagePath(imageName string) string {
 	return fmt.Sprintf(imagePath, imageName)
 }
@@ -66,7 +59,4 @@ func LogPath(containerName string) string {
 
 func NetworkPath() string {
 	return networkPath
-}
-func IpamPath() string {
-	return ipamPath
 }

@@ -80,7 +80,7 @@ func createLowerLayer(lowerPath string, imagePath string) error {
 			return fmt.Errorf("os.Mkdir err: %v", err)
 		}
 		if _, err = exec.Command("tar", "-xvf", imagePath, "-C", lowerPath).CombinedOutput(); err != nil {
-			return fmt.Errorf("exec.Command().CombinedOutput err: %v", err)
+			return fmt.Errorf("exec.Command.CombinedOutput err: %v", err)
 		}
 	}
 	return nil
