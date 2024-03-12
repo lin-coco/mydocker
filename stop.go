@@ -11,7 +11,7 @@ import (
 	"mydocker/path"
 )
 
-func stopContainer(containerName string) error {
+func stopContainer(f bool, containerName string) error {
 	info, err := getContainerInfoByName(containerName)
 	if err != nil {
 		return fmt.Errorf("getContainerPidByName err: %v", err)
@@ -20,8 +20,17 @@ func stopContainer(containerName string) error {
 	if err != nil {
 		return fmt.Errorf("strconv.Atoi err: %v", err)
 	}
-	// 发送SIGTERM来通知容器停止
-	_ = syscall.Kill(pid, syscall.SIGTERM) // 忽略错误
+	if f {
+		// 发送SIGKILL来通知容器停止
+		if err = syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			return fmt.Errorf("kill err: %v", err)
+		}
+	} else {
+		// 发送SIGTERM来通知容器停止
+		if err = syscall.Kill(pid, syscall.SIGTERM); err != nil {
+			return fmt.Errorf("kill err: %v", err)
+		}
+	}
 	// 修改容器状态
 	info.Status = container.STOP
 	info.Pid = " "

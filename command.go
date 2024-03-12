@@ -190,14 +190,21 @@ var (
 	stopCommand = cli.Command{
 		Name:  "stop",
 		Usage: "stop a container",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "f",
+				Usage: "force stop container",
+			},
+		},
 		Action: func(ctx *cli.Context) error {
 			var err error
+			f := ctx.Bool("f")
 			if len(ctx.Args()) < 1 {
 				log.Errorf("missing container name")
 				return err
 			}
 			containerName := ctx.Args().Get(0)
-			if err = stopContainer(containerName); err != nil {
+			if err = stopContainer(f, containerName); err != nil {
 				log.Errorf("docker stop err: %v", err)
 			}
 			return err
