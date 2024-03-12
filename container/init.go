@@ -1,13 +1,13 @@
 package container
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
@@ -118,7 +118,11 @@ func readUserCommand() ([]string, error) {
 	n, err := pipe.Read(data)
 	data = data[:n]
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("readUserCommand err: %v", err)
 	}
-	return strings.Split(string(data), " "), nil
+	userCommand := make([]string, 0)
+	if err = json.Unmarshal(data, &userCommand); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal err: %v", err)
+	}
+	return userCommand, nil
 }

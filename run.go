@@ -122,8 +122,11 @@ func enableParentResourceConfig(resourceConfig *cgroups.ResourceConfig, parentPi
 }
 
 func sendUserCommand(comArray []string, writePipe *os.File) error {
-	userCommand := strings.Join(comArray, " ")
-	if _, err := writePipe.WriteString(userCommand); err != nil {
+	bytes, err := json.Marshal(&comArray)
+	if err != nil {
+		return fmt.Errorf("json.Marshal err: %v", err)
+	}
+	if _, err = writePipe.Write(bytes); err != nil {
 		return err
 	}
 	_ = writePipe.Close()
@@ -135,7 +138,14 @@ func sendUserCommand(comArray []string, writePipe *os.File) error {
 */
 func recordContainerInfo(containerId string, containerName string, containerPID int, cgroup2Path string, volumePaths []string, networkName string, portMappings [][]string, imageName string, commandArray []string) (*container.Info, error, func()) {
 	createTime := time.Now().Format("2006-01-02 15:04:05")
-	command := strings.Join(commandArray, " ")
+	var command string
+	for _, s := range commandArray {
+		if len(strings.Split(s, " ")) > 1 {
+			command += "\"" + s + "\""
+		} else {
+			command += s
+		}
+	}
 	info := container.Info{
 		Pid:          strconv.Itoa(containerPID),
 		Id:           containerId,
