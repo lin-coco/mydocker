@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -64,10 +62,10 @@ var (
 			2. 获取用户指定的command
 			3. 调用Run function去准备启动容器
 		*/
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			if len(ctx.Args()) < 1 {
-				return errors.New("missing image")
+				log.Errorf("missing image")
+				return
 			}
 			var comArray []string // 用户命令
 			imageName := ctx.Args().Get(0)
@@ -83,9 +81,8 @@ var (
 			it := ctx.Bool("it")
 			d := ctx.Bool("d")
 			if it && d {
-				err = errors.New("it and d parameter can not both provided")
-				log.Errorf("docker run err: %v", err)
-				return err
+				log.Errorf("docker run err: it and d parameter can not both provided")
+				return
 			}
 			volume := ctx.String("v")
 			containerName := ctx.String("name")
@@ -97,10 +94,9 @@ var (
 				CpuShare:    ctx.String("cpushare"),
 				CpuSet:      ctx.String("cpuset"),
 			}
-			if err = Run(it, resourceConfig, volume, envs, networkName, portMappings, containerName, imageName, comArray); err != nil {
+			if err := Run(it, resourceConfig, volume, envs, networkName, portMappings, containerName, imageName, comArray); err != nil {
 				log.Error("docker run err:", err)
 			}
-			return err
 		},
 	}
 	initCommand = cli.Command{
@@ -109,82 +105,72 @@ var (
 		/*
 			执行容器初始化操作
 		*/
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			log.Infof("init come on")
 			if err := container.RunContainerInitProcess(); err != nil {
 				log.Errorf("docker init err: %v", err)
 			}
-			return err
 		},
 	}
 	commitCommand = cli.Command{
 		Name:  "commit",
 		Usage: "commit a container into image",
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			if len(ctx.Args()) < 2 {
 				log.Errorf("missing container name or image name")
-				return err
+				return
 			}
 			containerName := ctx.Args().Get(0)
 			imageName := ctx.Args().Get(1)
-			if err = commitContainer(containerName, imageName); err != nil {
+			if err := commitContainer(containerName, imageName); err != nil {
 				log.Errorf("docker commit err: %v", err)
 			}
-			return err
 		},
 	}
 	listCommand = cli.Command{
 		Name:  "ps",
 		Usage: "list all the containers",
-		Action: func(ctx *cli.Context) error {
-			var err error
-			if err = ListContainers(); err != nil {
+		Action: func(ctx *cli.Context) {
+			if err := ListContainers(); err != nil {
 				log.Errorf("docker ps err: %v", err)
 			}
-			return err
 		},
 	}
 	logCommand = cli.Command{
 		Name:  "logs",
 		Usage: "print logs of a container",
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			if len(ctx.Args()) < 1 {
 				log.Error("please input your container name")
-				return err
+				return
 			}
 			containerName := ctx.Args().Get(0)
-			if err = logContainer(containerName); err != nil {
+			if err := logContainer(containerName); err != nil {
 				log.Errorf("docker logs err: %v", err)
 			}
-			return err
 		},
 	}
 	execCommand = cli.Command{
 		Name:  "exec",
 		Usage: "exec a command into container",
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			// this is a callback
 			if os.Getenv(EnvExecPid) != "" {
 				log.Infof("pid callback gid %v", os.Getgid())
-				return nil
+				return
 			}
 			if len(ctx.Args()) < 2 {
 				log.Errorf("missing container name or command")
-				return err
+				return
 			}
 			containerName := ctx.Args().Get(0)
 			var commandArray []string
 			for i := 1; i < len(ctx.Args()); i++ {
 				commandArray = append(commandArray, ctx.Args().Get(i))
 			}
-			if err = ExecContainer(containerName, commandArray); err != nil {
+			if err := ExecContainer(containerName, commandArray); err != nil {
 				log.Errorf("docker exec err: %v", err)
 			}
-			return err
 		},
 	}
 	stopCommand = cli.Command{
@@ -196,18 +182,16 @@ var (
 				Usage: "force stop container",
 			},
 		},
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			f := ctx.Bool("f")
 			if len(ctx.Args()) < 1 {
 				log.Errorf("missing container name")
-				return err
+				return
 			}
 			containerName := ctx.Args().Get(0)
-			if err = stopContainer(f, containerName); err != nil {
+			if err := stopContainer(f, containerName); err != nil {
 				log.Errorf("docker stop err: %v", err)
 			}
-			return err
 		},
 	}
 	rmCommand = cli.Command{
@@ -219,18 +203,16 @@ var (
 				Usage: "force remove container",
 			},
 		},
-		Action: func(ctx *cli.Context) error {
-			var err error
+		Action: func(ctx *cli.Context) {
 			f := ctx.Bool("f")
 			if len(ctx.Args()) < 1 {
 				log.Errorf("missing container name")
-				return err
+				return
 			}
 			containerName := ctx.Args().Get(0)
-			if err = removeContainer(f, containerName); err != nil {
+			if err := removeContainer(f, containerName); err != nil {
 				log.Errorf("docker stop err: %v", err)
 			}
-			return err
 		},
 	}
 	networkCommand = cli.Command{
@@ -254,40 +236,35 @@ var (
 						Usage: "gateway ip",
 					},
 				},
-				Action: func(ctx *cli.Context) error {
+				Action: func(ctx *cli.Context) {
 					if len(ctx.Args()) < 1 {
 						log.Errorf("missing network name")
-						return fmt.Errorf("missing network name")
+						return
 					}
 					if err := CreateNetwork(ctx.String("driver"), ctx.String("subnet"), ctx.String("gateway"), ctx.Args().Get(0)); err != nil {
 						log.Errorf("docker network create err: %v", err)
-						return err
 					}
-					return nil
 				},
 			}, {
 				Name:  "list",
 				Usage: "list container network",
-				Action: func(ctx *cli.Context) error {
+				Action: func(ctx *cli.Context) {
 					if err := ListNetwork(); err != nil {
 						log.Errorf("docker network list err: %v", err)
-						return err
 					}
-					return nil
 				},
 			}, {
 				Name:  "remove",
 				Usage: "remove container network",
-				Action: func(ctx *cli.Context) error {
+				Action: func(ctx *cli.Context) {
 					if len(ctx.Args()) < 1 {
 						log.Errorf("missing network name")
-						return fmt.Errorf("missing network name")
+						return
 					}
 					if err := DeleteNetwork(ctx.Args().Get(0)); err != nil {
 						log.Errorf("docker network remove err: %v", err)
-						return err
+						return
 					}
-					return nil
 				},
 			},
 		},
