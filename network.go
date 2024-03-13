@@ -273,6 +273,12 @@ func configPortMappings(ipAddress net.IP, cInfo *container.Info) error {
 		if err != nil {
 			return fmt.Errorf("cmd.Output err: %v", err)
 		}
+		iptablesCmd = fmt.Sprintf("-t nat -A OUTPUT -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
+		cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
+		_, err = cmd.Output()
+		if err != nil {
+			return fmt.Errorf("cmd.Output err: %v", err)
+		}
 	}
 	return nil
 }
@@ -284,6 +290,12 @@ func cancelPortMappings(ipAddress net.IP, cInfo *container.Info) error {
 		iptablesCmd := fmt.Sprintf("-t nat -D PREROUTING -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
 		cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 		_, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("cmd.Output err: %v", err)
+		}
+		iptablesCmd = fmt.Sprintf("-t nat -D OUTPUT -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
+		cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
+		_, err = cmd.Output()
 		if err != nil {
 			return fmt.Errorf("cmd.Output err: %v", err)
 		}
