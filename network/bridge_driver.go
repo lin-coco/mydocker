@@ -150,7 +150,7 @@ func (b *BridgeNetworkDriver) initBridge(nw *Network) error {
 			4. 设置iptables的SNAT规则(MASQUERADE)
 		    iptables -t nat -A POSTROUTING -s <gatewayIp> ! -o <bridgeName> -j MASQUERADE
 	*/
-	iptablesCmd := fmt.Sprintf("-t nat -A POSTROUTING -s %s ! -o %s -j MASQUERADE", ipNet.String(), bridgeName)
+	iptablesCmd := fmt.Sprintf("-t nat -I POSTROUTING -s %s ! -o %s -j MASQUERADE", ipNet.String(), bridgeName)
 	cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 	output, err := cmd.Output()
 	if err != nil {
@@ -160,7 +160,7 @@ func (b *BridgeNetworkDriver) initBridge(nw *Network) error {
 		5. 允许桥转发
 		iptables -A FORWARD -i testbridge -j ACCEPT
 	*/
-	iptablesCmd = fmt.Sprintf("-A FORWARD -i %s -j ACCEPT", bridgeName)
+	iptablesCmd = fmt.Sprintf("-I FORWARD -i %s -j ACCEPT", bridgeName)
 	cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 	output, err = cmd.Output()
 	if err != nil {
