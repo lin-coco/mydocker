@@ -127,12 +127,21 @@ var (
 			}
 		},
 	}
-	listCommand = cli.Command{
+	psCommand = cli.Command{
 		Name:  "ps",
 		Usage: "list all the containers",
 		Action: func(ctx *cli.Context) {
-			if err := ListContainers(); err != nil {
+			if err := listContainers(); err != nil {
 				log.Errorf("docker ps err: %v", err)
+			}
+		},
+	}
+	imagesCommand = cli.Command{
+		Name:  "images",
+		Usage: "list all the images",
+		Action: func(ctx *cli.Context) {
+			if err := listImages(); err != nil {
+				log.Errorf("docker images err: %v", err)
 			}
 		},
 	}

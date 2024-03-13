@@ -10,7 +10,7 @@ import (
 	"mydocker/path"
 )
 
-func ListContainers() error {
+func listContainers() error {
 	// 读取容器存储目录下的所有文件
 	entries, err := os.ReadDir(path.ContainerInfoLocation())
 	if err != nil && !os.IsNotExist(err) {

@@ -26,6 +26,9 @@ const (
 	networkPath     = networkLocation + "/network"
 )
 
+func ImageStoragePath() string {
+	return imageStoragePath
+}
 func ImagePath(imageName string) string {
 	return fmt.Sprintf(imagePath, imageName)
 }
