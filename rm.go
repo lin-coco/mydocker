@@ -26,12 +26,14 @@ func removeContainer(f bool, containerName string) error {
 			return fmt.Errorf("not a stop container")
 		}
 	} else {
-		var pid int
-		pid, err = strconv.Atoi(info.Pid)
-		if err != nil {
-			return fmt.Errorf("strconv.Atoi err: %v", err)
+		if info.Status != container.STOP {
+			var pid int
+			pid, err = strconv.Atoi(info.Pid)
+			if err != nil {
+				return fmt.Errorf("strconv.Atoi err: %v", err)
+			}
+			_ = syscall.Kill(pid, syscall.SIGKILL)
 		}
-		_ = syscall.Kill(pid, syscall.SIGKILL)
 	}
 	// 清理cgroup
 	if err = cgroups.Clear(info.Cgroup2Path); err != nil {
