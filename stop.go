@@ -22,14 +22,10 @@ func stopContainer(f bool, containerName string) error {
 	}
 	if f {
 		// 发送SIGKILL来通知容器停止
-		if err = syscall.Kill(pid, syscall.SIGKILL); err != nil {
-			return fmt.Errorf("kill err: %v", err)
-		}
+		_ = syscall.Kill(pid, syscall.SIGKILL)
 	} else {
 		// 发送SIGTERM来通知容器停止
-		if err = syscall.Kill(pid, syscall.SIGTERM); err != nil {
-			return fmt.Errorf("kill err: %v", err)
-		}
+		_ = syscall.Kill(pid, syscall.SIGTERM)
 	}
 	// 修改容器状态
 	info.Status = container.STOP
