@@ -41,7 +41,13 @@ func (b *BridgeNetworkDriver) Delete(nw *Network) error {
 	if err != nil {
 		return fmt.Errorf("cmd.Output err: %v, output: %s", err, string(output))
 	}
-	iptablesCmd = fmt.Sprintf("-D FORWARD -i %s -j ACCEPT", nw.Name)
+	iptablesCmd = fmt.Sprintf("-D FORWARD -s %s -j ACCEPT", nw.Cidr.String())
+	cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
+	output, err = cmd.Output()
+	if err != nil {
+		return fmt.Errorf("cmd.Output err: %v, output: %s", err, string(output))
+	}
+	iptablesCmd = fmt.Sprintf("-D FORWARD -d %s -j ACCEPT", nw.Cidr.String())
 	cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 	output, err = cmd.Output()
 	if err != nil {
