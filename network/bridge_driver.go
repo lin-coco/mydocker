@@ -157,10 +157,17 @@ func (b *BridgeNetworkDriver) initBridge(nw *Network) error {
 		return fmt.Errorf("cmd.Output err: %v, output: %s", err, string(output))
 	}
 	/*
-		5. 允许桥转发
-		iptables -A FORWARD -i testbridge -j ACCEPT
+		5. 允许网络转发
+		iptables -I FORWARD -s 192.168.99.0/24 -j ACCEPT
+		iptables -I FORWARD -d 192.168.99.0/24 -j ACCEPT
 	*/
-	iptablesCmd = fmt.Sprintf("-I FORWARD -i %s -j ACCEPT", bridgeName)
+	iptablesCmd = fmt.Sprintf("-I FORWARD -s %s -j ACCEPT", nw.Cidr.String())
+	cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
+	output, err = cmd.Output()
+	if err != nil {
+		return fmt.Errorf("cmd.Output err: %v, output: %s", err, string(output))
+	}
+	iptablesCmd = fmt.Sprintf("-I FORWARD -d %s -j ACCEPT", nw.Cidr.String())
 	cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 	output, err = cmd.Output()
 	if err != nil {
