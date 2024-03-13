@@ -267,13 +267,13 @@ func configPortMappings(ipAddress net.IP, cInfo *container.Info) error {
 	for _, pm := range cInfo.PortMappings {
 		hostPort := pm[0]
 		containerPort := pm[1]
-		iptablesCmd := fmt.Sprintf("-t nat -A PREROUTING -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
+		iptablesCmd := fmt.Sprintf("-t nat -I PREROUTING -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
 		cmd := exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 		_, err := cmd.Output()
 		if err != nil {
 			return fmt.Errorf("cmd.Output err: %v", err)
 		}
-		iptablesCmd = fmt.Sprintf("-t nat -A OUTPUT -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
+		iptablesCmd = fmt.Sprintf("-t nat -I OUTPUT -p tcp --dport %s -j DNAT --to-destination %s:%s", hostPort, ipAddress.To4().String(), containerPort)
 		cmd = exec.Command("iptables", strings.Split(iptablesCmd, " ")...)
 		_, err = cmd.Output()
 		if err != nil {
