@@ -83,7 +83,7 @@ $ rm -rf /var/run/mydocker
 
 [开发笔记](./开发笔记.md)
 
-- [开发环境](./开发笔记/#开发环境)
+- [开发环境](./开发笔记.md/#开发环境)
 - [基础技术](./开发笔记/#基础技术)
   - [Linux Namespace](./开发笔记/##Linux Namespace)
   - [Linux Cgroups](./开发笔记/##Linux Cgroups)
